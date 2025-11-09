@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Firework Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Use Inter font -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+
+        /* Custom styles for the knob */
+        .knob-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+        }
+        .knob-dial {
+            width: 100%;
+            height: 100%;
+            background-color: #374151; /* Dark Gray */
+            border-radius: 50%;
+            box-shadow:
+                0 0 10px rgba(0, 0, 0, 0.8), /* Inner shadow */
+                0 0 0 15px rgba(255, 255, 255, 0.05) inset; /* Outer ring effect */
+            transition: box-shadow 0.1s;
+            transform: rotate(-135deg); /* Start at 0 volume */
+            touch-action: none; /* Allows continuous dragging on touch devices */
+        }
+        .knob-marker {
+            position: absolute;
+            top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #EF4444; /* Red indicator */
+            box-shadow: 0 0 10px #EF4444;
+        }
+        .knob-center {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100px;
+            height: 100px;
+            background-color: #1F2937; /* Even darker center */
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.9) inset;
+            transition: background-color 0.1s, transform 0.1s;
+        }
+        .knob-center:active {
+            transform: translate(-50%, -50%) scale(0.95);
+            background-color: #374151;
+        }
+        .log-message {
+            opacity: 0;
+            transition: opacity 0.3s, transform 0.3s;
+            transform: translateY(10px);
+        }
+        .log-message.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white min-h-screen flex flex-col items-center justify-center p-4">
+
+    <!-- Header / Title -->
+    <header class="mb-8 text-center">
+        <h1 class="text-3xl font-extrabold text-red-400">Firework Tracker</h1>
+        <p class="text-gray-400 mt-1">Set the volume, then tap the center to log the event.</p>
+    </header>
+
+    <!-- Main Knob UI -->
+    <div class="knob-container mb-10 mx-auto" id="knobContainer">
+        <div class="knob-dial" id="knobDial">
+            <!-- Marker is inside the dial to rotate with it -->
+            <div class="knob-marker"></div>
+        </div>
+
+        <!-- Center Button (Click to Log) -->
+        <div class="knob-center" id="knobCenter">
+            <svg class="w-10 h-10 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+        </div>
+    </div>
+
+    <!-- Volume Display -->
+    <div class="flex flex-col items-center mb-6">
+        <h2 class="text-lg text-gray-400 mb-1">Volume Level (0-100)</h2>
+        <span id="volumeDisplay" class="text-6xl font-black text-red-500">50</span>
+    </div>
+
+    <!-- Log Message Box -->
+    <div id="messageBox" class="log-message bg-gray-800 p-4 rounded-xl shadow-2xl max-w-sm w-full border border-gray-700">
+        <h3 class="text-lg font-semibold text-green-400 mb-2">Detection Logged!</h3>
+        <pre id="logData" class="text-sm text-gray-300 overflow-x-auto"></pre>
+        <p id="logError" class="text-sm text-red-400 mt-2 hidden"></p>
+    </div>
+
+
+    <script>
+        // --- UI Elements ---
+        const knobContainer = document.getElementById('knobContainer');
+        const knobDial = document.getElementById('knobDial');
+        const knobCenter = document.getElementById('knobCenter');
+        const volumeDisplay = document.getElementById('volumeDisplay');
+        const messageBox = document.getElementById('messageBox');
+        const logDataElement = document.getElementById('logData');
+        const logErrorElement = document.getElementById('logError');
+
+        // --- State Variables ---
+        let isDragging = false;
+        let currentRotation = 0; // In degrees, 0 to 270 (Volume 0 to 100)
+        const minRotation = -135; // Volume 0
+        const maxRotation = 135;  // Volume 100
+        const maxVolume = 100;
+
+        // Helper function to get the current volume level from rotation
+        const getVolumeLevel = (rotation) => {
+            // Normalize rotation from minRotation (-135) to maxRotation (135)
+            const normalizedRotation = rotation - minRotation; // 0 to 270
+            const volume = Math.round((normalizedRotation / 270) * maxVolume);
+            return Math.min(Math.max(0, volume), maxVolume); // Clamp between 0 and 100
+        };
+
+        // Helper function to update the UI with current rotation/volume
+        const updateKnobUI = (newRotation) => {
+            // Clamp the rotation between the min and max limits
+            currentRotation = Math.min(Math.max(newRotation, minRotation), maxRotation);
+            knobDial.style.transform = `rotate(${currentRotation}deg)`;
+            volumeDisplay.textContent = getVolumeLevel(currentRotation);
+        };
+
+        // --- Drag/Rotation Logic ---
+
+        const getAngle = (clientX, clientY) => {
+            const rect = knobContainer.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
+
+            // Calculate angle relative to the center (in radians)
+            const dx = clientX - centerX;
+            const dy = clientY - centerY;
+            let angle = Math.atan2(dy, dx) * (180 / Math.PI); // Convert to degrees
+
+            // The starting point (volume 0) is at -135 degrees (7 o'clock)
+            // The full range is 270 degrees.
+
+            // Normalize angle to the range -180 to 180 (standard ATAN2)
+            if (angle > 180) angle -= 360;
+
+            // The knob's logic is based on 0 volume at -135 and 100 volume at 135
+            return angle;
+        };
+
+        const handleStart = (e) => {
+            e.preventDefault();
+            isDragging = true;
+            // Add a temporary class to prevent text selection during drag on desktop
+            document.body.classList.add('select-none');
+            knobDial.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.8), 0 0 0 15px rgba(255, 255, 255, 0.1) inset';
+        };
+
+        const handleMove = (e) => {
+            if (!isDragging) return;
+
+            // Get coordinates (handle both mouse and touch events)
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+            let newAngle = getAngle(clientX, clientY);
+
+            // Simple logic: we only care about the quadrant from -135 to +135
+            // If the user moves near the "dead zone" (135 to -135, or 3 o'clock to 7 o'clock)
+            // we let the clamping handle it in updateKnobUI
+            updateKnobUI(newAngle);
+        };
+
+        const handleEnd = () => {
+            isDragging = false;
+            document.body.classList.remove('select-none');
+            knobDial.style.boxShadow = '0 0 10px rgba(0, 0, 0, 0.8), 0 0 0 15px rgba(255, 255, 255, 0.05) inset';
+        };
+
+        // Initialize knob to 50% volume (0 degrees rotation)
+        updateKnobUI(0);
+
+        // Attach event listeners for rotation
+        knobDial.addEventListener('mousedown', handleStart);
+        document.addEventListener('mousemove', handleMove);
+        document.addEventListener('mouseup', handleEnd);
+
+        // Attach touch listeners for mobile
+        knobDial.addEventListener('touchstart', handleStart);
+        document.addEventListener('touchmove', handleMove);
+        document.addEventListener('touchend', handleEnd);
+
+
+        // --- Click-to-Log Logic ---
+
+        const getGeoLocation = () => {
+            return new Promise((resolve, reject) => {
+                if (!navigator.geolocation) {
+                    reject(new Error("Geolocation is not supported by this browser."));
+                    return;
+                }
+
+                // Get high accuracy location
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        resolve({
+                            latitude: position.coords.latitude,
+                            longitude: position.coords.longitude,
+                            accuracy: position.coords.accuracy
+                        });
+                    },
+                    (error) => {
+                        // Handle errors: PERMISSION_DENIED (1), POSITION_UNAVAILABLE (2), TIMEOUT (3)
+                        let errorMessage;
+                        switch (error.code) {
+                            case 1: errorMessage = "Location permission denied."; break;
+                            case 2: errorMessage = "Location information is unavailable."; break;
+                            case 3: errorMessage = "Location request timed out."; break;
+                            default: errorMessage = "An unknown error occurred while getting location.";
+                        }
+                        reject(new Error(errorMessage));
+                    },
+                    { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
+                );
+            });
+        };
+
+        const logDetection = async () => {
+            // Hide previous message
+            messageBox.classList.remove('active');
+            logErrorElement.classList.add('hidden');
+            logDataElement.textContent = "Getting location...";
+
+            let location = { latitude: null, longitude: null, accuracy: null };
+            let error = null;
+
+            try {
+                location = await getGeoLocation();
+            } catch (e) {
+                error = e.message;
+                location = { latitude: 0.0, longitude: 0.0, accuracy: -1 }; // Default to 0,0 and -1 accuracy on failure
+                logErrorElement.textContent = `Location Error: ${error}. Using default coordinates.`;
+                logErrorElement.classList.remove('hidden');
+            }
+
+            const payload = {
+                detection_time: new Date().toISOString(),
+                volume_level: getVolumeLevel(currentRotation),
+                latitude: location.latitude,
+                longitude: location.longitude,
+                notes: `Logged on a device with a reported location accuracy of ${location.accuracy} meters.`
+            };
+
+            // SIMULATED POSTGRESQL SAVE STEP
+            // In a real Android app with a backend, you would use 'fetch' to POST this payload.
+            // fetch('YOUR_API_ENDPOINT_HERE', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify(payload)
+            // });
+
+            // Display the data that would be sent to the backend
+            logDataElement.textContent = JSON.stringify(payload, null, 2);
+            messageBox.classList.add('active');
+
+            console.log("--- FIREWORK DETECTION LOG ---");
+            console.log(payload);
+            console.log("------------------------------");
+        };
+
+        // Attach event listener to the center button
+        knobCenter.addEventListener('click', logDetection);
+
+        // Prevent the center click from being interpreted as a drag start
+        knobCenter.addEventListener('mousedown', (e) => e.stopPropagation());
+        knobCenter.addEventListener('touchstart', (e) => e.stopPropagation());
+
+    </script>
+</body>
+</html>

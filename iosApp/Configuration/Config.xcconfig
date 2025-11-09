@@ -1,0 +1,7 @@
+TEAM_ID=
+
+PRODUCT_NAME=FireworksTracker
+PRODUCT_BUNDLE_IDENTIFIER=com.koome.fireworkstracker.FireworksTracker$(TEAM_ID)
+
+CURRENT_PROJECT_VERSION=1
+MARKETING_VERSION=1.0
