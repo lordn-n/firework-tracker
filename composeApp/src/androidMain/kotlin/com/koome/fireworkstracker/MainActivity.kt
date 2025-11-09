@@ -6,6 +6,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 
 class MainActivity : ComponentActivity() {
@@ -14,17 +16,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            MaterialTheme {
-                FireworkTrackerScreen()
+            val hapticManager = AndroidHapticManager(LocalContext.current)
+            CompositionLocalProvider(LocalHapticManager provides hapticManager) {
+                MaterialTheme {
+                    FireworkTrackerScreen()
+                }
             }
         }
     }
 }
 
+class PreviewHapticManager : HapticManager {
+    override fun vibrateStrong() {}
+}
+
 @Preview
 @Composable
 fun AppAndroidPreview() {
-    MaterialTheme {
-        FireworkTrackerScreen()
+    CompositionLocalProvider(LocalHapticManager provides PreviewHapticManager()) {
+        MaterialTheme {
+            FireworkTrackerScreen()
+        }
     }
 }

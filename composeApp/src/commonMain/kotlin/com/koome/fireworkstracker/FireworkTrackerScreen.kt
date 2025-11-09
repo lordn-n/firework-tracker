@@ -35,9 +35,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
@@ -50,13 +48,13 @@ fun FireworkTrackerScreen() {
     val volume = ((rotation + 135) / 270 * 100).toInt().coerceIn(0, 100)
     val koomeOrange = Color(0xFFF15A21)
     var lastEvent by remember { mutableStateOf<FireworkEvent?>(null) }
-    val haptic = LocalHapticFeedback.current
+    val hapticManager = LocalHapticManager.current
 
-    LaunchedEffect(haptic) {
+    LaunchedEffect(hapticManager) {
         snapshotFlow { volume }
             .drop(1) // Ignore the initial value
             .collect {
-                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                hapticManager?.vibrateStrong()
             }
     }
 
