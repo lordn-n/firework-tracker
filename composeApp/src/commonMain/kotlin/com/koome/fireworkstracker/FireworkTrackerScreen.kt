@@ -46,8 +46,8 @@ import kotlinx.coroutines.flow.drop
 
 @Composable
 fun FireworkTrackerScreen() {
-    var rotation by remember { mutableStateOf(135f) } // Initial volume is 0
-    val volume = 100 - ((rotation + 135) / 270 * 100).toInt().coerceIn(0, 100)
+    var rotation by remember { mutableStateOf(-135f) } // Initial volume is 0
+    val volume = ((rotation + 135) / 270 * 100).toInt().coerceIn(0, 100)
     val koomeOrange = Color(0xFFF15A21)
     var lastEvent by remember { mutableStateOf<FireworkEvent?>(null) }
     val haptic = LocalHapticFeedback.current
@@ -120,7 +120,7 @@ fun FireworkTrackerScreen() {
                             longitude = 0.0, // Placeholder
                             notes = "Putos cohetes..."
                         )
-                        rotation = 135f // Reset volume to 0
+                        rotation = -135f // Reset volume to 0
                     },
                     modifier = Modifier
                         .size(100.dp)
