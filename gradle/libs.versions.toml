@@ -14,6 +14,7 @@ junit = "4.13.2"
 kotlin = "2.2.20"
 voyager = "1.0.0"
 accompanist = "0.32.0"
+uuid = "0.8.4"
 
 [libraries]
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
@@ -31,6 +32,7 @@ voyager-screenModel = { module = "cafe.adriel.voyager:voyager-screenmodel", vers
 voyager-tab-navigator = { module = "cafe.adriel.voyager:voyager-tab-navigator", version.ref = "voyager" }
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyager" }
 accompanist-systemuicontroller = { module = "com.google.accompanist:accompanist-systemuicontroller", version.ref = "accompanist" }
+uuid = { module = "com.benasher44:uuid", version.ref = "uuid" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

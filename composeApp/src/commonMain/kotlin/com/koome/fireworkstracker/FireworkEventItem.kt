@@ -45,10 +45,10 @@ fun FireworkEventItem(event: FireworkEvent, onDelete: () -> Unit) {
                     color = Color(0xFFF15A21)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Datetime: ${formatTimestamp(event.detectionTime)}", color = Color.White)
-                Text("Volume: ${event.volumeLevel}", color = Color.White)
+                Text("Datetime: ${formatTimestamp(event.occurredAt)}", color = Color.White)
+                Text("Volume: ${event.volume}", color = Color.White)
                 Text("Location: (${event.latitude}, ${event.longitude})", color = Color.White)
-                Text("Notes: ${event.notes}", color = Color.White)
+                event.notes?.let { Text("Notes: $it", color = Color.White) }
             }
             IconButton(onClick = onDelete) {
                 Icon(

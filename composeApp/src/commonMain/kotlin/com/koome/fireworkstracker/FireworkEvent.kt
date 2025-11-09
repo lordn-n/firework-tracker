@@ -1,9 +1,13 @@
 package com.koome.fireworkstracker
 
 data class FireworkEvent(
-    val detectionTime: Long,
-    val volumeLevel: Int,
+    val id: String? = null,
+    val userId: String? = null,
+    val occurredAt: Long,
+    val volume: Int,
+    val notes: String?,
     val latitude: Double,
     val longitude: Double,
-    val notes: String
+    val accuracy: Float? = null,
+    val source: String = "app"
 )

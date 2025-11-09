@@ -15,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,35 +28,10 @@ import cafe.adriel.voyager.navigator.tab.LocalTabNavigator
 
 @Composable
 fun ReportsScreen() {
-    var events by remember {
-        mutableStateOf(
-            listOf(
-                FireworkEvent(
-                    detectionTime = System.currentTimeMillis(),
-                    volumeLevel = 85,
-                    latitude = 34.0522,
-                    longitude = -118.2437,
-                    notes = "Loud ones tonight!"
-                ),
-                FireworkEvent(
-                    detectionTime = System.currentTimeMillis() - 1000 * 60 * 60 * 24,
-                    volumeLevel = 60,
-                    latitude = 34.0522,
-                    longitude = -118.2437,
-                    notes = "Smaller ones"
-                ),
-                FireworkEvent(
-                    detectionTime = System.currentTimeMillis() - 1000 * 60 * 60 * 24 * 2,
-                    volumeLevel = 95,
-                    latitude = 34.0522,
-                    longitude = -118.2437,
-                    notes = "Very loud"
-                )
-            )
-        )
-    }
+    val events by FireworkEventsRepository.events.collectAsState()
     var showDialog by remember { mutableStateOf<FireworkEvent?>(null) }
     val tabNavigator = LocalTabNavigator.current
+    val koomeOrange = Color(0xFFF15A21)
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -85,7 +61,7 @@ fun ReportsScreen() {
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(events) { event ->
+                items(events, key = { it.id!! }) { event ->
                     FireworkEventItem(event = event) {
                         showDialog = event
                     }
@@ -102,12 +78,12 @@ fun ReportsScreen() {
             confirmButton = {
                 Button(
                     onClick = {
-                        events = events.filter { it != event }
+                        FireworkEventsRepository.deleteEvent(event.id!!)
                         showDialog = null
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F2937))
                 ) {
-                    Text("Delete")
+                    Text("Delete", color=koomeOrange)
                 }
             },
             dismissButton = {

@@ -111,13 +111,15 @@ fun FireworkTrackerScreen() {
                 }
                 IconButton(
                     onClick = {
-                        lastEvent = FireworkEvent(
-                            detectionTime = System.currentTimeMillis(),
-                            volumeLevel = volume,
+                        val newEvent = FireworkEvent(
+                            occurredAt = System.currentTimeMillis(),
+                            volume = volume,
                             latitude = 0.0, // Placeholder
                             longitude = 0.0, // Placeholder
                             notes = "Putos cohetes..."
                         )
+                        FireworkEventsRepository.addEvent(newEvent)
+                        lastEvent = newEvent
                         rotation = -135f // Reset volume to 0
                     },
                     modifier = Modifier
@@ -162,10 +164,10 @@ fun FireworkTrackerScreen() {
                                     color = koomeOrange
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Datetime: ${formatTimestamp(event.detectionTime)}", color = Color.White)
-                                Text("Volume: ${event.volumeLevel}", color = Color.White)
+                                Text("Datetime: ${formatTimestamp(event.occurredAt)}", color = Color.White)
+                                Text("Volume: ${event.volume}", color = Color.White)
                                 Text("Location: (${event.latitude}, ${event.longitude})", color = Color.White)
-                                Text("Notes: ${event.notes}", color = Color.White)
+                                event.notes?.let { Text("Notes: $it", color = Color.White) }
                             }
                         }
                         IconButton(
