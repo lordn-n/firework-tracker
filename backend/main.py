@@ -13,25 +13,19 @@ from dotenv import load_dotenv
 from mangum import Mangum
 import json
 
-# --- Load Environment Variables ---
 load_dotenv()
 
-# --- Database Configuration ---
-# For AWS Lambda, DATABASE_URL is retrieved from the secret passed as an environment variable
 db_url_env = os.getenv("DATABASE_URL")
 
 if db_url_env is None:
     raise RuntimeError("DATABASE_URL environment variable not set")
 
-# In Lambda, the env var might be a JSON string from Secrets Manager
 try:
-    # Try to parse as JSON, assuming it's like {"DATABASE_URL":"..."}
     db_config = json.loads(db_url_env)
     DATABASE_URL = db_config.get("DATABASE_URL")
     if DATABASE_URL is None:
          raise RuntimeError("'DATABASE_URL' key not found in the secret JSON")
 except json.JSONDecodeError:
-    # Fallback for local development where it's a plain string
     DATABASE_URL = db_url_env
 
 database = databases.Database(DATABASE_URL)
@@ -54,7 +48,6 @@ reports = sqlalchemy.Table(
 engine = create_engine(DATABASE_URL)
 metadata.create_all(engine)
 
-# --- Pydantic Models ---
 class FireworkEventIn(BaseModel):
     user_id: Optional[uuid.UUID] = None
     volume: int = Field(..., ge=0, le=100)
@@ -75,7 +68,6 @@ class FireworkEventOut(BaseModel):
     accuracy_m: Optional[float] = None
     source: str
 
-# --- FastAPI App ---
 app = FastAPI(title="Fireworks Tracker API")
 
 @app.on_event("startup")
@@ -124,5 +116,4 @@ async def delete_report(report_id: uuid.UUID):
         raise HTTPException(status_code=404, detail="Report not found")
     return {}
 
-# --- Lambda Handler ---
 handler = Mangum(app)
