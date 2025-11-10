@@ -1,11 +1,7 @@
-# --- AWS ECR to store the Docker image ---
-resource "aws_ecr_repository" "fireworks_api_repo" {
-  name                 = "fireworks-api"
-  image_tag_mutability = "MUTABLE"
-
-  image_scanning_configuration {
-    scan_on_push = true
-  }
+# --- AWS ECR Data Source ---
+# This looks up the existing ECR repository you created manually.
+data "aws_ecr_repository" "fireworks_api_repo" {
+  name = "fireworks-api" # The name of your existing ECR repository
 }
 
 # --- AWS Secrets Manager ---
