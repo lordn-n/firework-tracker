@@ -91,4 +91,4 @@ jobs:
           terraform apply \
             -target=module.backend \
             -auto-approve \
-            -var="api_image_uri=${{ steps.export-image.outputs.api_image_uri }}"
+            -var="lambda_image_uri=${{ steps.export-image.outputs.api_image_uri }}"
