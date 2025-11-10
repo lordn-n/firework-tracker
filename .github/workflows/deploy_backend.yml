@@ -13,6 +13,14 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fireworks-api
+  TF_STATE_BUCKET: fireworks-tracker
+  TF_STATE_KEY: terraform/api.tfstate
+  TF_STATE_REGION: us-east-1
+  API_IMAGE_TAG: fireworks-tracker-api-${{ github.sha }}
+
 permissions:
   id-token: write   # This is required for OIDC authentication with AWS
   contents: read    # This is required to check out the repository's code
@@ -26,27 +34,42 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Configure AWS Credentials using OIDC
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          role-to-assume: arn:aws:iam::871997720004:role/github-actions
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
       - name: Log in to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push Docker image to ECR
+      - name: Build and push Lambda image
         id: build-image
+        uses: docker/build-push-action@v5
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: "fireworks-api" # Must match the name in your terraform/main.tf
-          IMAGE_TAG: ${{ github.sha }}
+        with:
+          context: ./backend
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          tags: ${{ env.ECR_REGISTRY }}/${{ env.ECR_REPOSITORY }}:${{ env.API_IMAGE_TAG }}
+          cache-from: type=gha,scope=back-${{ github.workflow }}
+          cache-to: type=gha,mode=max,scope=back${{ github.workflow }}
+
+      - name: Export image_uri output
+        id: export-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
-          # Build, tag, and push the image to ECR
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG ./backend
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+          echo "api_image_uri=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$API_IMAGE_TAG" >> $GITHUB_OUTPUT
 
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
@@ -54,11 +77,18 @@ jobs:
           terraform_version: "1.5.0" # Or your desired version
 
       - name: Terraform Init
-        id: init
-        run: terraform init
         working-directory: ./terraform
+        run: |
+          terraform init \
+            -target=module.backend \
+            -backend-config="bucket=${{ env.TF_STATE_BUCKET }}" \
+            -backend-config="key=${{ env.TF_STATE_KEY }}" \
+            -backend-config="region=${{ env.TF_STATE_REGION }}"
 
       - name: Terraform Apply
-        id: apply
-        run: terraform apply -auto-approve -var="lambda_image_uri=${{ steps.build-image.outputs.image }}"
         working-directory: ./terraform
+        run: |
+          terraform apply \
+            -target=module.backend \
+            -auto-approve \
+            -var="api_image_uri=${{ steps.export-image.outputs.api_image_uri }}"
