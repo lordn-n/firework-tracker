@@ -28,6 +28,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -41,14 +42,27 @@ import androidx.compose.ui.unit.dp
 import kotlin.math.atan2
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.launch
 
 @Composable
 fun FireworkTrackerScreen() {
+    val permissionHandler = rememberPermissionHandler()
+
+    permissionHandler.askForLocationPermission {
+        FireworkTrackerScreenContent()
+    }
+}
+
+@Composable
+fun FireworkTrackerScreenContent() {
     var rotation by remember { mutableStateOf(-135f) } // Initial volume is 0
     val volume = ((rotation + 135) / 270 * 100).toInt().coerceIn(0, 100)
     val koomeOrange = Color(0xFFF15A21)
     var lastEvent by remember { mutableStateOf<FireworkEvent?>(null) }
     val hapticManager = LocalHapticManager.current
+    val locationService = remember { getLocationService() }
+    val scope = rememberCoroutineScope()
+    var currentLocation by remember { mutableStateOf<Location?>(null) }
 
     LaunchedEffect(hapticManager) {
         snapshotFlow { volume }
@@ -111,16 +125,19 @@ fun FireworkTrackerScreen() {
                 }
                 IconButton(
                     onClick = {
-                        val newEvent = FireworkEvent(
-                            occurredAt = System.currentTimeMillis(),
-                            volume = volume,
-                            latitude = 0.0, // Placeholder
-                            longitude = 0.0, // Placeholder
-                            notes = "Putos cohetes..."
-                        )
-                        FireworkEventsRepository.addEvent(newEvent)
-                        lastEvent = newEvent
-                        rotation = -135f // Reset volume to 0
+                        scope.launch {
+                            currentLocation = locationService.getCurrentLocation()
+                            val newEvent = FireworkEvent(
+                                occurredAt = System.currentTimeMillis(),
+                                volume = volume,
+                                latitude = currentLocation?.latitude ?: 0.0,
+                                longitude = currentLocation?.longitude ?: 0.0,
+                                notes = "Putos cohetes..."
+                            )
+                            FireworkEventsRepository.addEvent(newEvent)
+                            lastEvent = newEvent
+                            rotation = -135f // Reset volume to 0
+                        }
                     },
                     modifier = Modifier
                         .size(100.dp)

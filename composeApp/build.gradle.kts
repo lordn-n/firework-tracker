@@ -30,6 +30,9 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.accompanist.systemuicontroller)
+            implementation(libs.accompanist.permissions)
+            implementation(libs.maps.compose)
+            implementation(libs.play.services.location)
         }
         commonMain.dependencies {
             implementation(compose.runtime)

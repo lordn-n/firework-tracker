@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+databases[postgresql]
+sqlalchemy
+psycopg2-binary
+GeoAlchemy2
+python-dotenv
+uuid

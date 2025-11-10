@@ -15,6 +15,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,7 +32,39 @@ fun ReportsScreen() {
     val events by FireworkEventsRepository.events.collectAsState()
     var showDialog by remember { mutableStateOf<FireworkEvent?>(null) }
     val tabNavigator = LocalTabNavigator.current
-    val koomeOrange = Color(0xFFF15A21)
+
+    // Add sample data only if the repository is empty
+    LaunchedEffect(Unit) {
+        if (FireworkEventsRepository.events.value.isEmpty()) {
+            val sampleEvents = listOf(
+                FireworkEvent(
+                    id = "1",
+                    occurredAt = System.currentTimeMillis(),
+                    volume = 85,
+                    latitude = 37.4221,
+                    longitude = -122.0841,
+                    notes = "Loud ones in Mountain View!"
+                ),
+                FireworkEvent(
+                    id = "2",
+                    occurredAt = System.currentTimeMillis() - 1000 * 60 * 60 * 24,
+                    volume = 60,
+                    latitude = 37.7749,
+                    longitude = -122.4194,
+                    notes = "Smaller ones in SF"
+                ),
+                FireworkEvent(
+                    id = "3",
+                    occurredAt = System.currentTimeMillis() - 1000 * 60 * 60 * 24 * 2,
+                    volume = 95,
+                    latitude = 34.0522,
+                    longitude = -118.2437,
+                    notes = "Very loud in LA"
+                )
+            )
+            sampleEvents.forEach { FireworkEventsRepository.addEvent(it) }
+        }
+    }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -83,7 +116,7 @@ fun ReportsScreen() {
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1F2937))
                 ) {
-                    Text("Delete", color=koomeOrange)
+                    Text("Delete")
                 }
             },
             dismissButton = {
