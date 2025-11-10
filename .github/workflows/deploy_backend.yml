@@ -13,6 +13,14 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: fireworks-tracker
+  TF_STATE_BUCKET: fireworks-tracker
+  TF_STATE_KEY: fireworks-tracker.tfstate
+  TF_STATE_REGION: us-east-1
+  API_IMAGE_TAG: fireworks-tracker-api-${{ github.sha }}
+
 permissions:
   id-token: write   # This is required for OIDC authentication with AWS
   contents: read    # This is required to check out the repository's code
