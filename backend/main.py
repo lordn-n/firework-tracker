@@ -104,7 +104,19 @@ async def create_report(event: FireworkEventIn):
 
 @app.get("/reports/", response_model=List[FireworkEventOut])
 async def get_reports():
-    query = "SELECT id, user_id, occurred_at, volume, notes, ST_X(location::geometry) as longitude, ST_Y(location::geometry) as latitude, accuracy_m, source FROM reports"
+    query = """
+        SELECT
+            id,
+            user_id,
+            occurred_at,
+            volume,
+            notes,
+            ST_X(location::geometry) as longitude,
+            ST_Y(location::geometry) as latitude,
+            accuracy_m,
+            source
+        FROM reports
+    """
     results = await database.fetch_all(query)
     return results
 
