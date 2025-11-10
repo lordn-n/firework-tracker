@@ -1,10 +1,12 @@
 # Use an official AWS-provided base image for Python Lambda functions
 FROM public.ecr.aws/lambda/python:3.9
 
-# Set the working directory in the container to the default Lambda task root
-WORKDIR ${LAMBDA_TASK_ROOT}
+# The LAMBDA_TASK_ROOT is /var/task. This is where Lambda looks for the code.
+# We will set it as the working directory.
+WORKDIR /var/task
 
-# Copy the requirements file and install dependencies
+# Copy the requirements file and install dependencies.
+# The paths are now relative to the WORKDIR.
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
@@ -12,5 +14,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY main.py .
 
 # The command that will be run when the container starts.
-# This tells the Lambda service to use the 'handler' object in the 'main' module.
+# This tells the Lambda runtime to find the 'handler' object in the 'main' module.
 CMD ["main.handler"]
