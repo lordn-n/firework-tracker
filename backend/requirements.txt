@@ -6,3 +6,4 @@ psycopg2-binary
 GeoAlchemy2
 python-dotenv
 uuid
+mangum

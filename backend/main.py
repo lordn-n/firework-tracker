@@ -10,15 +10,30 @@ import uuid
 from datetime import datetime
 import os
 from dotenv import load_dotenv
+from mangum import Mangum
+import json
 
 # --- Load Environment Variables ---
 load_dotenv()
 
 # --- Database Configuration ---
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/fireworks")
-if DATABASE_URL is None:
-    raise Exception("DATABASE_URL environment variable not set")
-    
+# For AWS Lambda, DATABASE_URL is retrieved from the secret passed as an environment variable
+db_url_env = os.getenv("DATABASE_URL")
+
+if db_url_env is None:
+    raise RuntimeError("DATABASE_URL environment variable not set")
+
+# In Lambda, the env var might be a JSON string from Secrets Manager
+try:
+    # Try to parse as JSON, assuming it's like {"DATABASE_URL":"..."}
+    db_config = json.loads(db_url_env)
+    DATABASE_URL = db_config.get("DATABASE_URL")
+    if DATABASE_URL is None:
+         raise RuntimeError("'DATABASE_URL' key not found in the secret JSON")
+except json.JSONDecodeError:
+    # Fallback for local development where it's a plain string
+    DATABASE_URL = db_url_env
+
 database = databases.Database(DATABASE_URL)
 metadata = sqlalchemy.MetaData()
 
@@ -40,10 +55,6 @@ engine = create_engine(DATABASE_URL)
 metadata.create_all(engine)
 
 # --- Pydantic Models ---
-class Location(BaseModel):
-    latitude: float
-    longitude: float
-
 class FireworkEventIn(BaseModel):
     user_id: Optional[uuid.UUID] = None
     volume: int = Field(..., ge=0, le=100)
@@ -78,12 +89,8 @@ async def shutdown():
 # --- API Endpoints ---
 @app.post("/reports/", response_model=FireworkEventOut, status_code=201)
 async def create_report(event: FireworkEventIn):
-    """
-    Create a new firework report.
-    """
     point = f'SRID=4326;POINT({event.longitude} {event.latitude})'
     query = reports.insert().values(
-        user_id=event.user_id,
         volume=event.volume,
         notes=event.notes,
         location=point,
@@ -91,54 +98,31 @@ async def create_report(event: FireworkEventIn):
         source=event.source
     )
     last_record_id = await database.execute(query)
-
-    # To return the full object, we need to fetch it
+    
     query = reports.select().where(reports.c.id == last_record_id)
     created_report = await database.fetch_one(query)
-
-    # Convert the database record to the response model
+    
     return {
-        "id": created_report["id"],
-        "user_id": created_report["user_id"],
-        "occurred_at": created_report["occurred_at"],
-        "volume": created_report["volume"],
-        "notes": created_report["notes"],
-        "latitude": event.latitude, # The location column is a special type
-        "longitude": event.longitude,
-        "accuracy_m": created_report["accuracy_m"],
+        "id": created_report["id"], "user_id": created_report["user_id"],
+        "occurred_at": created_report["occurred_at"], "volume": created_report["volume"],
+        "notes": created_report["notes"], "latitude": event.latitude,
+        "longitude": event.longitude, "accuracy_m": created_report["accuracy_m"],
         "source": created_report["source"]
     }
 
 @app.get("/reports/", response_model=List[FireworkEventOut])
 async def get_reports():
-    """
-    Retrieve all firework reports.
-    """
-    query = reports.select()
+    query = "SELECT id, user_id, occurred_at, volume, notes, ST_X(location::geometry) as longitude, ST_Y(location::geometry) as latitude, accuracy_m, source FROM reports"
     results = await database.fetch_all(query)
-    
-    # We need to manually parse the location point
-    return [
-        {
-            "id": r["id"],
-            "user_id": r["user_id"],
-            "occurred_at": r["occurred_at"],
-            "volume": r["volume"],
-            "notes": r["notes"],
-            "latitude": r["location"].y,
-            "longitude": r["location"].x,
-            "accuracy_m": r["accuracy_m"],
-            "source": r["source"]
-        } for r in results
-    ]
+    return results
 
 @app.delete("/reports/{report_id}", status_code=204)
 async def delete_report(report_id: uuid.UUID):
-    """
-    Delete a firework report by its ID.
-    """
     query = reports.delete().where(reports.c.id == report_id)
     result = await database.execute(query)
     if not result:
         raise HTTPException(status_code=404, detail="Report not found")
     return {}
+
+# --- Lambda Handler ---
+handler = Mangum(app)
