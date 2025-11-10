@@ -8,9 +8,17 @@ from geoalchemy2 import Geometry
 from sqlalchemy.sql import func
 import uuid
 from datetime import datetime
+import os
+from dotenv import load_dotenv
+
+# --- Load Environment Variables ---
+load_dotenv()
 
 # --- Database Configuration ---
-DATABASE_URL = "postgresql://user:password@localhost/fireworks"  # Replace with your credentials
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://user:password@localhost/fireworks")
+if DATABASE_URL is None:
+    raise Exception("DATABASE_URL environment variable not set")
+    
 database = databases.Database(DATABASE_URL)
 metadata = sqlalchemy.MetaData()
 

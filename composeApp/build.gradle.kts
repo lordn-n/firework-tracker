@@ -1,5 +1,14 @@
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
+
+// Read local.properties
+val localProperties = Properties()
+val localPropertiesFile = project.rootProject.file("local.properties")
+if (localPropertiesFile.exists()) {
+    localProperties.load(localPropertiesFile.inputStream())
+}
+
 
 plugins {
     alias(libs.plugins.kotlinMultiplatform)
@@ -30,7 +39,6 @@ kotlin {
             implementation(compose.preview)
             implementation(libs.androidx.activity.compose)
             implementation(libs.accompanist.systemuicontroller)
-            implementation(libs.accompanist.permissions)
             implementation(libs.maps.compose)
             implementation(libs.play.services.location)
         }
@@ -66,6 +74,13 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+
+        // Expose the Maps API key as a BuildConfig field
+        val mapsApiKey = localProperties.getProperty("MAPS_API_KEY") ?: ""
+        buildConfigField("String", "MAPS_API_KEY", "\"$mapsApiKey\"")
+
+        // Also make it available to the manifest
+        manifestPlaceholders["mapsApiKey"] = mapsApiKey
     }
     packaging {
         resources {
@@ -80,6 +95,9 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        buildConfig = true
     }
 }
 
